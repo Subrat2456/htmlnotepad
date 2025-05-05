@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notepad Clone</title>
+  <style>
+    /* Basic Reset & Box Sizing */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0; /* Light gray background */
+      overflow: hidden; /* Prevent body scroll */
+      font-size: 14px; /* Base font size */
+    }
+
+    .home {
+      display: flex;
+      flex-direction: column;
+      height: 100vh; /* Full viewport height */
+      width: 100%;
+      background-color: #ffffff; /* White main area */
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      max-width: 1200px; /* Optional: Max width for large screens */
+      margin: 0 auto; /* Center on large screens */
+    }
+
+    /* Menu Bar */
+    .menu-bar {
+      background-color: #e1e1e1; /* Lighter gray menu bar */
+      border-bottom: 1px solid #ccc;
+      padding: 5px 10px;
+      display: flex;
+      gap: 5px; /* Spacing between menu items */
+      flex-shrink: 0; /* Prevent menu bar from shrinking */
+      position: relative; /* Needed for absolute positioning of toolboxes */
+      z-index: 10; /* Ensure menu bar is above toolboxes initially */
+    }
+
+    .menu-bar button.menu-item {
+      border: none;
+      font-weight: normal; /* Use normal weight, style with padding */
+      color: #333;
+      background-color: transparent;
+      padding: 5px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .menu-bar button.menu-item:hover,
+    .menu-bar button.menu-item:focus {
+      background-color: #cccccc;
+      outline: none;
+    }
+
+    /* Dropdown Toolbox */
+    .toolbox {
+      position: absolute; /* Position relative to the viewport/offset parent */
+      top: 35px;  /* Default top position (will be adjusted by JS) */
+      left: 10px; /* Default left position (will be adjusted by JS) */
+      width: 180px; /* Slightly wider dropdown */
+      padding: 5px 0; /* Padding top/bottom */
+      background-color: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+      transform-origin: top left;
+      overflow: hidden;
+      z-index: 100; /* Ensure toolboxes are above editor */
+      opacity: 0;
+      transform: scaleY(0.95); /* Slight scale effect */
+      visibility: hidden; /* Use visibility instead of max-height for better transitions */
+    }
+
+    .toolbox.visible {
+      opacity: 1;
+      transform: scaleY(1);
+      visibility: visible;
+    }
+
+    /* Buttons inside Toolbox */
+    .toolbox button,
+    .toolbox .controls button,
+    .toolbox .controls select,
+    .toolbox .controls label {
+      display: block; /* Each item on a new line */
+      width: 100%; /* Full width */
+      padding: 8px 15px; /* Consistent padding */
+      background-color: transparent;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+      color: #333;
+      margin: 0; /* Remove default margins */
+      border-radius: 0; /* No radius for individual buttons */
+    }
+
+    .toolbox button:hover,
+    .toolbox .controls button:hover {
+      background-color: #0078d7; /* Highlight color on hover */
+      color: #ffffff;
+    }
+
+     /* Font Controls Specific Styling */
+    .toolbox .controls {
+      padding: 10px 15px; /* Padding around the controls section */
+    }
+    .toolbox .controls label {
+      font-size: 12px;
+      margin-bottom: 3px;
+      margin-top: 8px;
+      padding: 0; /* Reset padding for labels */
+      cursor: default;
+      color: #555; /* Slightly dimmer label color */
+    }
+    .toolbox .controls label:first-child {
+       margin-top: 0;
+    }
+
+    .toolbox .controls select {
+      margin-bottom: 10px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 13px;
+       background-color: #fff; /* Ensure white background */
+       color: #333;
+    }
+
+    .toolbox .controls button {
+        padding: 8px 15px; /* Keep consistent padding */
+        margin-top: 5px;
+        border: 1px solid transparent; /* Placeholder for potential focus style */
+        background-color: #f9f9f9; /* Light background for style buttons */
+        color: #333;
+    }
+     .toolbox .controls button:hover {
+         background-color: #e0e0e0;
+         color: #111;
+     }
+      .toolbox .controls button:active,
+      .toolbox .controls button.active { /* Class for active state */
+         background-color: #cce5ff; /* Indicate active style */
+         border-color: #99caff;
+     }
+
+    /* Editor Area */
+    .editor {
+      flex-grow: 1; /* Take up remaining vertical space */
+      border: none; /* Remove default border */
+      border-top: 1px solid #ccc; /* Separator line */
+      border-bottom: 1px solid #ccc; /* Separator line */
+      resize: none;
+      font-size: 1rem; /* Use rem for scalability */
+      line-height: 1.5;
+      padding: 10px;
+      outline: none; /* Remove focus outline */
+      width: 100%; /* Ensure it takes full width */
+      background-color: #fff; /* Ensure white background */
+      color: #111;
+      font-family: 'Courier New', Courier, monospace; /* Classic notepad font */
+      white-space: pre; /* Preserve whitespace like Notepad */
+      overflow-wrap: normal; /* Prevent default word wrap */
+      overflow: auto; /* Allow scrolling */
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background-color: #e1e1e1; /* Match menu bar */
+      border-top: 1px solid #ccc;
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 10px;
+      font-size: 11px;
+      gap: 15px; /* More space between items */
+      color: #555;
+      flex-shrink: 0; /* Prevent status bar from shrinking */
+      flex-wrap: wrap; /* Allow items to wrap on small screens */
+    }
+    .status-bar span {
+        white-space: nowrap; /* Prevent individual items from wrapping */
+        padding: 0 5px; /* Add a bit of padding */
+        border-right: 1px solid #ccc; /* Separators */
+    }
+    .status-bar span:last-child {
+        border-right: none; /* No separator for the last item */
+    }
+
+
+    /* Suggestions Box */
+    .suggestions {
+      display: none; /* Hide by default */
+      position: absolute; /* Essential for positioning */
+      min-width: 150px; /* Minimum width */
+      max-width: 300px; /* Maximum width */
+      max-height: 200px;
+      overflow-y: auto;
+      background-color: #ffffff;
+      border: 1px solid #b0b0b0; /* Slightly darker border */
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      z-index: 1000; /* Above everything */
+      font-size: 13px;
+    }
+
+    .suggestions div {
+      padding: 8px 12px;
+      color: #333;
+      cursor: pointer;
+      white-space: nowrap; /* Prevent suggestions from wrapping */
+      overflow: hidden;
+      text-overflow: ellipsis; /* Add ... if suggestion is too long */
+      transition: background-color 0.15s ease;
+    }
+
+    .suggestions div:hover {
+      background-color: #0078d7;
+      color: #fff;
+    }
+
+    /* Utility Classes */
+    .hidden {
+       /* Using visibility/opacity now */
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 600px) {
+      body {
+        font-size: 13px; /* Slightly smaller base font on mobile */
+      }
+      .home {
+         border: none;
+         box-shadow: none;
+         height: 100%; /* Ensure it fills mobile screen */
+      }
+
+      .menu-bar {
+        padding: 5px;
+        gap: 2px;
+      }
+      .menu-bar button.menu-item {
+        padding: 5px;
+      }
+
+      .toolbox {
+          width: 170px; /* Adjust width if needed */
+      }
+
+      .editor {
+        font-size: 0.95rem; /* Slightly smaller editor font */
+        padding: 8px;
+      }
+
+      .status-bar {
+        padding: 3px 8px;
+        font-size: 10px;
+        gap: 5px; /* Less gap on mobile */
+        justify-content: flex-start; /* Align items to start on wrap */
+      }
+       .status-bar span {
+           padding: 0 3px;
+           border-right: 1px solid #d0d0d0;
+       }
+
+      .suggestions {
+           max-width: 80vw; /* Limit width relative to viewport */
+           font-size: 12px;
+      }
+       .suggestions div {
+           padding: 6px 10px;
+       }
+    }
+  </style>
+</head>
+<body>
+  <div class="home">
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+      <button class="menu-item" data-toolbox="toolbox">File</button>
+      <button class="menu-item" data-toolbox="toolbo">Edit</button>
+      <button class="menu-item" data-toolbox="toolb">Font</button>
+      <button class="menu-item" data-toolbox="tool">View</button>
+    </div>
+
+    <!-- Toolboxes (Dropdowns) -->
+    <div id="toolbox" class="toolbox">
+      <button onclick="newFile()">New</button>
+      <button onclick="newWindow()">New Window</button>
+      <button onclick="openFile()">Open...</button>
+      <button onclick="clearText()">Clear</button>
+      <button onclick="saveFile()">Save</button>
+      <button onclick="saveAs()">Save As...</button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+      <button onclick="pageSetup()">Page Setup...</button>
+      <button onclick="printPage()">Print...</button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+      <button onclick="exitApp()">Exit</button>
+    </div>
+
+    <div id="toolbo" class="toolbox">
+      <button onclick="undoAction()">Undo</button>
+      <button onclick="redoAction()">Redo</button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+      <button onclick="cutText()">Cut</button>
+      <button onclick="copyText()">Copy</button>
+      <button onclick="pasteText()">Paste</button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+      <button onclick="searchWord()">Find...</button>
+      <button onclick="replaceWord()">Replace...</button>
+      <button onclick="goToLine()">Go To...</button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+      <button onclick="selectAllText()">Select All</button>
+      <button onclick="insertTime()">Time/Date</button>
+    </div>
+
+    <div id="toolb" class="toolbox">
+      <div class="controls">
+        <label for="font-family">Font Family:</label>
+        <select id="font-family">
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="'Courier New', Courier, monospace" selected>Courier New</option>
+          <option value="'Times New Roman', Times, serif">Times New Roman</option>
+          <option value="'Verdana', sans-serif">Verdana</option>
+          <option value="'Lucida Console', Monaco, monospace">Lucida Console</option>
+        </select>
+
+        <label for="font-size">Font Size:</label>
+        <select id="font-size">
+          <option value="8pt">8</option>
+          <option value="9pt">9</option>
+          <option value="10pt">10</option>
+          <option value="11pt">11</option>
+          <option value="12pt" selected>12</option>
+          <option value="14pt">14</option>
+          <option value="16pt">16</option>
+          <option value="18pt">18</option>
+          <option value="20pt">20</option>
+          <option value="24pt">24</option>
+          <option value="28pt">28</option>
+          <option value="36pt">36</option>
+          <option value="48pt">48</option>
+          <option value="72pt">72</option>
+        </select>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+        <button id="bold-btn">Bold</button>
+        <button id="italic-btn">Italic</button>
+        <button id="underline-btn">Underline</button>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+        <button id="align-left">Align Left</button>
+        <button id="align-center">Align Center</button>
+        <button id="align-right">Align Right</button>
+      </div>
+    </div>
+
+    <div id="tool" class="toolbox">
+      <button onclick="zoomIn()">Zoom In</button>
+      <button onclick="zoomOut()">Zoom Out</button>
+      <button onclick="restoreDefaultZoom()">Restore Default Zoom</button>
+    </div>
+
+    <!-- Main Editor -->
+    <textarea class="editor" id="editor" spellcheck="false"></textarea>
+
+    <!-- Suggestions Box -->
+    <div class="suggestions" id="suggestionBox"></div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="fileInput" accept=".txt,.html,.js,.css,text/plain,.md" onchange="readFile()" hidden>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span id="status-line-col">Ln 1, Col 1</span>
+      <span id="status-zoom">100%</span>
+      <span>Windows (CRLF)</span>
+      <span>UTF-8</span>
+    </div>
+  </div>
+
+  <!-- Hidden Div for Measuring Suggestion Position -->
+  <div id="suggestion-measure" style="position: absolute; top: -9999px; left: -9999px; white-space: pre-wrap; overflow-wrap: break-word; visibility: hidden;"></div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const statusBarLineCol = document.getElementById('status-line-col');
+    const statusBarZoom = document.getElementById('status-zoom');
+    const suggestionBox = document.getElementById('suggestionBox');
+    const menuButtons = document.querySelectorAll('.menu-bar .menu-item');
+    const toolboxes = document.querySelectorAll('.toolbox');
+    const measureDiv = document.getElementById('suggestion-measure'); // Get reference to measure div
+
+    // --- State Variables ---
+    let currentFontSizePt = 12; // Use points consistent with select options
+    let currentZoomLevel = 100;
+    let undoStack = ['']; // Start with initial empty state
+    let historyPointer = 0;
+    const MAX_HISTORY = 50;
+    let suggestionDebounceTimeout;
+    const DEBOUNCE_DELAY = 250; // ms delay before showing suggestions
+
+    // --- Editor & Status Bar Logic ---
+    function updateStatusBar() {
+        const text = editor.value;
+        const cursorPos = editor.selectionStart;
+        let line = 1;
+        let col = 1;
+        // This is a simplified calculation; accurate col requires checking tabs etc.
+        for (let i = 0; i < cursorPos; i++) {
+            if (text[i] === '\n') {
+                line++;
+                col = 1;
+            } else {
+                col++;
+            }
+        }
+        statusBarLineCol.textContent = `Ln ${line}, Col ${col}`;
+    }
+
+    editor.addEventListener('input', updateStatusBar); // Update on any input
+    editor.addEventListener('click', updateStatusBar); // Update on click
+    editor.addEventListener('keyup', updateStatusBar); // Handle arrow keys etc.
+
+
+    // --- Zoom Logic ---
+    function applyZoom() {
+        // Calculate size based on base point size and zoom level
+        const baseSizePt = currentFontSizePt; // Base size from font select
+        const newSizePt = baseSizePt * (currentZoomLevel / 100);
+        editor.style.fontSize = `${newSizePt}pt`; // Apply size in points
+        statusBarZoom.textContent = `${currentZoomLevel}%`;
+    }
+
+    function zoomIn() {
+      currentZoomLevel = Math.min(500, currentZoomLevel + 10); // Max zoom 500%
+      applyZoom();
+    }
+
+    function zoomOut() {
+      currentZoomLevel = Math.max(10, currentZoomLevel - 10); // Min zoom 10%
+      applyZoom();
+    }
+    function restoreDefaultZoom() {
+       currentZoomLevel = 100;
+       applyZoom();
+    }
+    // Initialize zoom based on default font size
+    applyZoom();
+
+
+    // --- Toolbox Dropdown Logic ---
+    menuButtons.forEach(button => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation(); // Prevent document click handler closing it immediately
+        const targetToolboxId = button.getAttribute('data-toolbox');
+        const targetToolbox = document.getElementById(targetToolboxId);
+
+        if (!targetToolbox) return; // Safety check
+
+        const isVisible = targetToolbox.classList.contains('visible');
+        hideAllToolboxes(); // Hide others first
+
+        if (!isVisible) {
+          const btnRect = button.getBoundingClientRect();
+          targetToolbox.style.left = `${btnRect.left}px`;
+          targetToolbox.style.top = `${btnRect.bottom + 2}px`; // Position below button
+
+           // Show temporarily off-screen to measure width
+           targetToolbox.style.visibility = 'hidden';
+           targetToolbox.style.display = 'block'; // Needs display block to measure
+           const toolboxRect = targetToolbox.getBoundingClientRect();
+           targetToolbox.style.display = ''; // Reset display
+           targetToolbox.style.visibility = ''; // Reset visibility before making visible
+
+
+          const viewportWidth = window.innerWidth;
+          if (btnRect.left + toolboxRect.width > viewportWidth - 10) { // Add small buffer
+                targetToolbox.style.left = `${viewportWidth - toolboxRect.width - 10}px`; // Adjust left
+          }
+           // Prevent going off top (less common but possible)
+           if (btnRect.bottom + 2 < 0) {
+                targetToolbox.style.top = '5px';
+           }
+
+          targetToolbox.classList.add('visible');
+        }
+      });
+    });
+
+    function hideAllToolboxes() {
+        toolboxes.forEach(box => box.classList.remove('visible'));
+    }
+
+    document.addEventListener('click', (event) => {
+        const isOutsideMenu = !event.target.closest('.menu-bar button.menu-item');
+        const isOutsideToolbox = !event.target.closest('.toolbox');
+
+        if (isOutsideMenu && isOutsideToolbox) {
+             hideAllToolboxes();
+        }
+        // Also hide suggestions if click is outside editor/suggestions
+        if (!event.target.closest('.editor') && !event.target.closest('.suggestions')) {
+             toggleSuggestionsBox(false);
+        }
+    });
+
+     toolboxes.forEach(box => {
+         box.addEventListener('click', event => event.stopPropagation());
+     });
+
+
+    // --- File Operations ---
+    function newFile() {
+      if (confirm('Are you sure? Unsaved changes will be lost.')) {
+        editor.value = '';
+        undoStack = ['']; // Reset history
+        historyPointer = 0;
+        updateStatusBar();
+        hideAllToolboxes();
+      }
+    }
+    function newWindow() {
+      window.open(window.location.href, '_blank');
+      hideAllToolboxes();
+    }
+    function openFile() {
+      document.getElementById('fileInput').click();
+      hideAllToolboxes();
+    }
+    function readFile() {
+      const file = document.getElementById('fileInput').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          editor.value = event.target.result;
+          undoStack = [editor.value]; // Reset history with new content
+          historyPointer = 0;
+          updateStatusBar();
+        };
+        reader.onerror = function() {
+          alert("Error reading file.");
+        }
+        reader.readAsText(file);
+        document.getElementById('fileInput').value = ''; // Reset input for same file selection
+      }
+    }
+    function clearText() {
+        if (confirm('Clear all text? This cannot be undone easily.')) {
+             editor.value = '';
+             saveState(); // Record the clear action in history
+             updateStatusBar();
+             hideAllToolboxes();
+        }
+    }
+    function saveFile(fileName = 'notepad.txt') {
+      try {
+          const text = editor.value;
+          // Use CRLF line endings for better Windows compatibility
+          const blob = new Blob([text.replace(/\n/g, "\r\n")], { type: 'text/plain;charset=utf-8' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+      } catch (e) {
+          console.error("Save failed:", e);
+          alert("Could not save the file. Your browser might not support this feature or block pop-ups.");
+      }
+       hideAllToolboxes();
+    }
+    function saveAs() {
+        const defaultName = "untitled.txt";
+        const fileName = prompt("Save as:", defaultName);
+        if (fileName) { // Check if user entered a name (didn't click Cancel)
+            saveFile(fileName);
+        } else {
+             hideAllToolboxes();
+        }
+    }
+    function pageSetup() {
+      alert('Page Setup is handled by the browser\'s print dialog.');
+      hideAllToolboxes();
+    }
+    function printPage() {
+      try {
+          const printWindow = window.open('', '_blank');
+           // Basic styling for printing - preserves whitespace and wraps lines
+          printWindow.document.write(`<html><head><title>Print</title><style>
+              body { margin: 20px; font-family: ${editor.style.fontFamily || "'Courier New', monospace"}; font-size: ${editor.style.fontSize || '10pt'}; }
+              pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; }
+              </style></head><body><pre>`);
+          // Basic HTML escaping
+          printWindow.document.write(editor.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+          printWindow.document.write('</pre></body></html>');
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => { printWindow.print(); }, 500); // Delay slightly
+
+      } catch (e) {
+           console.error("Print failed:", e);
+           alert("Could not prepare content for printing.");
+      }
+       hideAllToolboxes();
+    }
+    function exitApp() {
+      // Note: Closing window programmatically is often blocked by browsers.
+      if (confirm('Are you sure you want to close this tab? Unsaved changes may be lost.')) {
+        window.close();
+      }
+       hideAllToolboxes();
+    }
+
+    // --- Edit Operations (Undo/Redo) ---
+    editor.addEventListener('input', () => {
+        // Debounce state saving slightly might improve performance on rapid typing
+         // For simplicity, saving directly now. Add debounce if needed.
+         saveState();
+         // Input event already triggers status bar update via its own listener
+    });
+
+    function saveState() {
+        // If history was traversed, truncate future states
+        if (historyPointer < undoStack.length - 1) {
+            undoStack = undoStack.slice(0, historyPointer + 1);
+        }
+
+        // Add new state only if it's different from the last
+        if (undoStack[undoStack.length - 1] !== editor.value) {
+            undoStack.push(editor.value);
+            historyPointer++;
+
+            // Limit history size
+            if (undoStack.length > MAX_HISTORY) {
+                undoStack.shift();
+                historyPointer--;
+            }
+        }
+         // No need to update status bar here, input/keyup/click listeners handle it
+    }
+
+    function undoAction() {
+        if (historyPointer > 0) {
+            historyPointer--;
+            editor.value = undoStack[historyPointer];
+            updateStatusBar(); // Update status after changing content
+             editor.focus(); // Keep focus
+        }
+    }
+
+    function redoAction() {
+         if (historyPointer < undoStack.length - 1) {
+             historyPointer++;
+             editor.value = undoStack[historyPointer];
+             updateStatusBar();
+              editor.focus();
+         }
+    }
+
+     // --- Edit Operations (Clipboard, Find, etc.) ---
+    function execCmdHelper(command, value = null) {
+         try {
+             document.execCommand(command, false, value);
+             saveState(); // Save state after successful command
+             updateStatusBar();
+         } catch (e) {
+             console.error(`Error executing command '${command}':`, e);
+             alert(`Operation '${command}' failed. It might not be supported by your browser or context.`);
+         }
+         editor.focus();
+     }
+
+    function cutText() { execCmdHelper('cut'); }
+    function copyText() { execCmdHelper('copy'); }
+    async function pasteText() {
+        try {
+            // Prefer Clipboard API for plain text pasting
+            const text = await navigator.clipboard.readText();
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.value = editor.value.substring(0, start) + text + editor.value.substring(end);
+            editor.selectionStart = editor.selectionEnd = start + text.length; // Move cursor after paste
+            saveState();
+            updateStatusBar();
+        } catch (err) {
+            console.warn('Clipboard API read failed, falling back to execCommand:', err);
+            execCmdHelper('paste'); // Fallback for browsers/permissions issues
+        }
+        editor.focus();
+    }
+
+    // Simple Find/Replace (can be improved with highlighting, next/prev)
+    let lastSearchTerm = "";
+    function searchWord() {
+        const searchTerm = prompt("Find what:", lastSearchTerm);
+        if (searchTerm === null) return hideAllToolboxes(); // User cancelled
+        lastSearchTerm = searchTerm; // Remember for next time
+
+        const text = editor.value;
+        const startPos = editor.selectionEnd; // Start search after current selection/cursor
+        let index = text.indexOf(searchTerm, startPos);
+
+        if (index === -1) { // If not found after cursor, search from beginning
+             index = text.indexOf(searchTerm);
+        }
+
+        if (index !== -1) {
+            editor.focus();
+            editor.setSelectionRange(index, index + searchTerm.length);
+            // Simple scroll into view (might not be perfect)
+            const lines = text.substring(0, index).split('\n').length;
+            const lineHeight = parseFloat(window.getComputedStyle(editor).lineHeight) || 20;
+            editor.scrollTop = Math.max(0, (lines - 5) * lineHeight); // Scroll to approx line
+        } else {
+            alert(`Cannot find "${searchTerm}"`);
+        }
+        hideAllToolboxes();
+    }
+
+    function replaceWord() {
+        const findTerm = prompt("Find what:");
+        if (findTerm === null) return hideAllToolboxes();
+        const replaceTerm = prompt("Replace with:");
+        if (replaceTerm === null) return hideAllToolboxes();
+
+        const text = editor.value;
+        // Basic global replace, case-sensitive. Use RegExp for more options (e.g., case-insensitive)
+        // Escape special regex characters in findTerm if using RegExp
+        if (text.includes(findTerm)) {
+            editor.value = text.replaceAll(findTerm, replaceTerm); // Modern method
+            saveState();
+            updateStatusBar();
+        } else {
+            alert(`Cannot find "${findTerm}"`);
+        }
+        hideAllToolboxes();
+    }
+
+    function insertTime() {
+        const dateTime = new Date().toLocaleString(); // User's local format
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + dateTime + editor.value.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + dateTime.length;
+        saveState();
+        updateStatusBar();
+        hideAllToolboxes();
+    }
+
+    function goToLine() {
+        const totalLines = editor.value.split('\n').length;
+        const lineNumStr = prompt(`Go to line (1-${totalLines}):`);
+        if (lineNumStr) {
+            const lineNum = parseInt(lineNumStr, 10);
+            if (!isNaN(lineNum) && lineNum >= 1 && lineNum <= totalLines) {
+                const lines = editor.value.split('\n');
+                let charCount = 0;
+                for (let i = 0; i < lineNum - 1; i++) {
+                    charCount += lines[i].length + 1; // +1 for newline char
+                }
+                editor.focus();
+                editor.setSelectionRange(charCount, charCount); // Go to start of line
+                const lineHeight = parseFloat(window.getComputedStyle(editor).lineHeight) || 20;
+                editor.scrollTop = Math.max(0, (lineNum - 5) * lineHeight); // Scroll approx
+            } else {
+                alert("Invalid line number.");
+            }
+        }
+        hideAllToolboxes();
+    }
+    function selectAllText() {
+        editor.select();
+        editor.focus();
+        // Don't hide toolbox, user might want Cut/Copy right after
+    }
+
+    // --- Font/Style Operations ---
+    const fontFamilySelect = document.getElementById('font-family');
+    const fontSizeSelect = document.getElementById('font-size');
+    const boldBtn = document.getElementById('bold-btn');
+    const italicBtn = document.getElementById('italic-btn');
+    const underlineBtn = document.getElementById('underline-btn');
+    const alignLeftBtn = document.getElementById('align-left');
+    const alignCenterBtn = document.getElementById('align-center');
+    const alignRightBtn = document.getElementById('align-right');
+
+    fontFamilySelect.addEventListener('change', () => {
+        editor.style.fontFamily = fontFamilySelect.value;
+    });
+    fontSizeSelect.addEventListener('change', () => {
+        currentFontSizePt = parseFloat(fontSizeSelect.value) || 12; // Update base size
+        applyZoom(); // Reapply zoom based on new base size
+    });
+
+    // Direct style toggles on textarea (limited effect, mostly visual)
+    function toggleStyle(element, styleProp, value1, value2) {
+         element.style[styleProp] = element.style[styleProp] === value1 ? value2 : value1;
+    }
+    function updateButtonStyle(button, isActive) {
+        button.classList.toggle('active', isActive); // Use 'active' class for styling
+    }
+
+    boldBtn.addEventListener('click', () => {
+        toggleStyle(editor, 'fontWeight', 'bold', 'normal');
+        updateButtonStyle(boldBtn, editor.style.fontWeight === 'bold');
+    });
+    italicBtn.addEventListener('click', () => {
+        toggleStyle(editor, 'fontStyle', 'italic', 'normal');
+         updateButtonStyle(italicBtn, editor.style.fontStyle === 'italic');
+    });
+    underlineBtn.addEventListener('click', () => {
+        // Underline doesn't toggle cleanly, use text-decoration
+        editor.style.textDecoration = editor.style.textDecoration === 'underline' ? 'none' : 'underline';
+         updateButtonStyle(underlineBtn, editor.style.textDecoration === 'underline');
+    });
+
+    alignLeftBtn.addEventListener('click', () => editor.style.textAlign = 'left');
+    alignCenterBtn.addEventListener('click', () => editor.style.textAlign = 'center');
+    alignRightBtn.addEventListener('click', () => editor.style.textAlign = 'right');
+
+    // --- Auto Suggestions ---
+    // Add your extensive list here, or keep it shorter for performance
+    const suggestions = [
+        "<!Doctype html><html><head><title></title></head><body></body></html>",
+  "<!Doctype html>", "<html></html>", "<head></head>", "<title></title>", "<body></body>",
+  "<h1></h1>", "<h2></h2>", "<h3></h3>", "<h4></h4>", "<div></div>", "<span></span>", 
+  "<a href=></a>", "<img src=>", "<audio></audio>", "<br>", "<button></button>", 
+  "<details></details>", "<fieldset></fieldset>", "<footer></footer>", "<form></form>", 
+  "<header></header>", "<i></i>", "<iframe></iframe>", "<input type=>", "<legend></legend>", 
+  "<li></li>", "<link>", "<radio>", "<checkbox>", "<nav></nav>", "<option></option>", 
+  "<p></p>", "<style></style>", "<section></section>", "<strong></strong>", 
+  "<script>/script", "<table></table>", "<tr></tr>", "<marquee></marquee>", 
+  "<textarea></textarea>", "<th></th>", "<time></time>", "<ul></ul>", "<video></video>", 
+  "<h5></h5>", "<u></u>", "<thead></thead>", "<small></small>", "<svg></svg>", "<path></path>", 
+  "<article></article>", "<aside></aside>", "<canvas></canvas>", "<main></main>", "<map></map>", 
+  "<picture></picture>", "<progress></progress>", "<blockquote></blockquote>", 
+  "<cite></cite>", "<code></code>", "<abbr></abbr>", "<b></b>", "<em></em>", "<q></q>",
+"{}","[]","()","h1{}","h2{}","h3{}","h4{}",
+":","tittle{}","body{}","head{}",";",
+"selection{}","opption{}","img{}","video{}",
+"table{}","tr{}","td{}","span{}",
+"button{}","from{}","input{}","filedset{}",
+"red", "blue","green","lightgreen",
+"gray","pink","white","black",
+"skyblue","solid","10px","transprant",
+"none","align-content:", "align-items:", "align-self:", "animation:", "animation-delay", 
+  "animation-direction:", "background:", "background-color:", "background-image:", 
+  "border:", "border-top-left-radius:", "border-top-right-radius:", "border-bottom-left-radius:", 
+  "border-bottom-right-radius:", "color:", "content", "display:block;", "display:flex;", 
+  "font-family:", "font-size:", "font-style:", "height:", "width:", "margin:", "margin-top:", 
+  "margin-bottom", "margin-left", "margin-right", "padding", "rotate", "text-align", 
+  "transform", "z-index", "@keyframes", "translateX", "translate", "linear infinite", 
+  "font-weight", "justify-content", "flex-wrap", "grid-template-areas", 
+  "grid-template-rows", "grid-template-columns", "gap", "row-gap", "column-gap", 
+  "box-shadow", "text-shadow", "position", "top:", "bottom:", "left:", "right:", 
+  "overflow", "opacity", "visibility", "clip-path",
+
+         ".getElementById",".addEventListener",
+        "function", "const", "let", "variable", "array", "object", "class", "JavaScript", 
+  "HTML", "CSS", "property", "method", "event", "listener", "syntax", "value", 
+  "element", "attribute", "string", "number", "boolean", "loop", "condition", "DOM", 
+  "node", "parent", "child", "sibling", "async", "await", "promise", "callback", 
+  "addEventListener", "querySelector", "getElementById", "setTimeout", "setInterval", 
+  "JSON", "localStorage", "sessionStorage", "fetch", "axios", "new", "prototype", 
+  "this", "return", "try", "catch", "throw", "debugger", "break", "continue", 
+  "switch", "case", "default", "forEach", "map", "filter", "reduce", "sort", 
+  "reverse", "push", "pop", "shift", "unshift", "indexOf", "includes", "isNaN", 
+  "parseInt", "parseFloat", "Math.random", "Math.floor", "Math.ceil", "Math.round", 
+  "console.log", "alert", "confirm", "prompt", "window", "document"
+    ];
+
+    function getCursorXY(textarea, cursorPosition) {
+      if (!measureDiv) return { top: 0, left: 0 };
+
+      const textareaStyles = window.getComputedStyle(textarea);
+      [
+        "{}","[]","()","h1{}","h2{}","h3{}","h4{}",
+":","tittle{}","body{}","head{}",";",
+"selection{}","opption{}","img{}","video{}",
+"table{}","tr{}","td{}","span{}",
+"button{}","from{}","input{}","filedset{}",
+"red", "blue","green","lightgreen",
+"gray","pink","white","black",
+"skyblue","solid","10px","transprant",
+"none","align-content:", "align-items:", "align-self:", "animation:", "animation-delay", 
+  "animation-direction:", "background:", "background-color:", "background-image:", 
+  "border:", "border-top-left-radius:", "border-top-right-radius:", "border-bottom-left-radius:", 
+  "border-bottom-right-radius:", "color:", "content", "display:block;", "display:flex;", 
+  "font-family:", "font-size:", "font-style:", "height:", "width:", "margin:", "margin-top:", 
+  "margin-bottom", "margin-left", "margin-right", "padding", "rotate", "text-align", 
+  "transform", "z-index", "@keyframes", "translateX", "translate", "linear infinite", 
+  "font-weight", "justify-content", "flex-wrap", "grid-template-areas", 
+  "grid-template-rows", "grid-template-columns", "gap", "row-gap", "column-gap", 
+  "box-shadow", "text-shadow", "position", "top:", "bottom:", "left:", "right:", 
+  "overflow", "opacity", "visibility", "clip-path"
+      ].forEach(style => {
+        measureDiv.style[style] = textareaStyles[style];
+      });
+
+      // Use pre-wrap for consistent wrapping behavior measurement
+      measureDiv.style.whiteSpace = 'pre-wrap';
+      measureDiv.style.overflowWrap = 'break-word'; // Or match editor's wrap style
+
+      const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+      const escapedText = textBeforeCursor
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br />'); // Use <br> for measurement in HTML
+
+      // Use Zero Width Space maybe? Or just the span. Let's stick with span.
+      measureDiv.innerHTML = escapedText + '<span id="cursor-marker" style="display: inline-block; width: 0;"></span>';
+
+      document.body.appendChild(measureDiv); // Add to DOM temporarily
+      const marker = document.getElementById('cursor-marker');
+      const measureRect = measureDiv.getBoundingClientRect(); // Measure div itself
+      const markerRect = marker.getBoundingClientRect();     // Measure the marker span
+      document.body.removeChild(measureDiv); // Clean up
+
+      const textareaRect = textarea.getBoundingClientRect();
+
+      // Calculate position relative to the viewport, factoring in textarea scroll
+      const top = textareaRect.top // Textarea's top edge
+                + (markerRect.top - measureRect.top) // Marker's vertical offset *inside* the measureDiv
+                - textarea.scrollTop; // Adjust for how much the textarea content is scrolled
+
+      const left = textareaRect.left // Textarea's left edge
+                 + (markerRect.left - measureRect.left) // Marker's horizontal offset *inside* the measureDiv
+                 - textarea.scrollLeft; // Adjust for horizontal scroll
+
+       const lineHeight = parseFloat(textareaStyles.lineHeight) || (parseFloat(textareaStyles.fontSize) * 1.2); // Estimate line height if needed
+       return {
+           top: top + lineHeight, // Position *below* the current line
+           left: left
+       };
+    }
+
+
+    function showSuggestions() {
+        const cursorPos = editor.selectionStart;
+        const textBeforeCursor = editor.value.substring(0, cursorPos);
+
+        // Match word characters (\w) or potentially trigger on other symbols like '<' or '.'
+        // This regex finds sequences of word chars, '.', '#', '<', '/'
+        const triggerMatch = textBeforeCursor.match(/[\w.#</]+$/);
+
+        if (!triggerMatch) {
+             toggleSuggestionsBox(false);
+             return;
+        }
+        const currentTrigger = triggerMatch[0];
+        if (currentTrigger.length === 0) {
+            toggleSuggestionsBox(false);
+            return;
+        }
+
+        const lcTrigger = currentTrigger.toLowerCase();
+        const filtered = suggestions.filter(s =>
+            s.toLowerCase().startsWith(lcTrigger)
+        );
+
+        suggestionBox.innerHTML = '';
+
+        if (filtered.length > 0) {
+            const coords = getCursorXY(editor, cursorPos);
+
+            suggestionBox.style.top = `${coords.top}px`;
+            suggestionBox.style.left = `${coords.left}px`;
+
+            suggestionBox.style.display = 'block'; // Make visible before measuring for boundary checks
+            const boxRect = suggestionBox.getBoundingClientRect();
+
+            // Boundary Checks
+            if (coords.left + boxRect.width > window.innerWidth - 10) { // Adjust right edge
+                suggestionBox.style.left = `${window.innerWidth - boxRect.width - 10}px`;
+            }
+             if (coords.left < 0) { // Prevent going off left
+                  suggestionBox.style.left = '5px';
+             }
+            if (coords.top + boxRect.height > window.innerHeight - 10) { // Adjust bottom edge (position above)
+                const lineHeight = parseFloat(window.getComputedStyle(editor).lineHeight) || 20;
+                suggestionBox.style.top = `${coords.top - boxRect.height - lineHeight}px`;
+            }
+             if (parseFloat(suggestionBox.style.top) < 0) { // Prevent going off top
+                 suggestionBox.style.top = '5px';
+             }
+
+
+            filtered.slice(0, 10).forEach(suggestion => {
+                const div = document.createElement('div');
+                div.textContent = suggestion;
+                div.title = suggestion; // Show full suggestion on hover if truncated
+
+                div.addEventListener('mousedown', (e) => {
+                    e.preventDefault(); // Prevent focus shift
+
+                    // Re-calculate trigger word at the time of click
+                    const clickCursorPos = editor.selectionStart;
+                    const clickTextBefore = editor.value.substring(0, clickCursorPos);
+                    const clickTriggerMatch = clickTextBefore.match(/[\w.#</]+$/);
+                    const wordToReplace = clickTriggerMatch ? clickTriggerMatch[0] : "";
+                    const wordStart = clickCursorPos - wordToReplace.length;
+
+                    const textAfter = editor.value.substring(clickCursorPos);
+                    editor.value = editor.value.substring(0, wordStart) + suggestion + textAfter;
+
+                    const newCursorPos = wordStart + suggestion.length;
+                    editor.focus();
+                    editor.setSelectionRange(newCursorPos, newCursorPos);
+
+                    toggleSuggestionsBox(false);
+                    saveState();
+                    updateStatusBar();
+                });
+                suggestionBox.appendChild(div);
+            });
+            // Already displayed with style.display = 'block'
+        } else {
+            toggleSuggestionsBox(false);
+        }
+    }
+
+    function toggleSuggestionsBox(show) {
+        suggestionBox.style.display = show ? 'block' : 'none';
+    }
+
+    // --- Event Listeners for Suggestions ---
+    editor.addEventListener('input', () => {
+        clearTimeout(suggestionDebounceTimeout);
+        suggestionDebounceTimeout = setTimeout(showSuggestions, DEBOUNCE_DELAY);
+        // saveState() is called by the main 'input' listener added earlier
+    });
+
+    editor.addEventListener('keyup', (e) => {
+        // Handle non-input keys that move cursor or could hide suggestions
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Escape'].includes(e.key)) {
+             clearTimeout(suggestionDebounceTimeout);
+             if (e.key === 'Escape') {
+                 toggleSuggestionsBox(false);
+             } else {
+                  suggestionDebounceTimeout = setTimeout(showSuggestions, DEBOUNCE_DELAY / 2); // Faster show on nav
+             }
+        }
+        // updateStatusBar() is called by main 'keyup' listener
+    });
+
+    editor.addEventListener('click', () => {
+         clearTimeout(suggestionDebounceTimeout);
+         suggestionDebounceTimeout = setTimeout(showSuggestions, DEBOUNCE_DELAY / 2); // Faster show on click
+         // updateStatusBar() is called by main 'click' listener
+    });
+
+     editor.addEventListener('blur', () => {
+          setTimeout(() => {
+               if (!suggestionBox.contains(document.activeElement)) { // Hide only if focus didn't move to suggestions
+                   toggleSuggestionsBox(false);
+               }
+          }, 150); // Slightly longer delay for blur
+     });
+
+
+    // --- Initial Setup ---
+    updateStatusBar(); // Initial status bar
+    editor.focus();    // Focus editor on load
+    // Set initial font styles from dropdown defaults
+    editor.style.fontFamily = fontFamilySelect.value;
+    currentFontSizePt = parseFloat(fontSizeSelect.value) || 12;
+    applyZoom(); // Apply initial zoom/font size
+
+  </script>
+</body>
+</html>
